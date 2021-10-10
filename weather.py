@@ -126,7 +126,10 @@ def get_coordinates():
     '''
     IP_INFO_URL = 'https://ipinfo.io/json'
     print('Getting coordinates...')
-    response = urllib.request.urlopen(IP_INFO_URL)
+    try:
+        response = urllib.request.urlopen(IP_INFO_URL)
+    except:
+        raise
     data = json.load(response)
     latitude, longitude = data['loc'].split(',')
     location = data['city'] + ', ' + data['region'] + ' ' + data['postal']
@@ -141,11 +144,11 @@ def get_weather(lat, lon):
             lon (float): 
 
         returns:
-            List containing the dictionaries of weather conditions for the next 8 days in 3 hour intervals.
-                [
+            Dict containing the weather conditions for the next 8 days in 3 hour intervals.
+                {
                     'product': str,
                     'init': str,                                        # YYYYMMDDHH.
-                    'dataseries': {
+                    'dataseries': [{
                         'timepoint': int,                               # Hours past 'init'.
                         'cloudcover': int,
                         'lifted_index': int,
@@ -155,15 +158,19 @@ def get_weather(lat, lon):
                         'rh2m': str,
                         'wind10m': { 'direction': str, 'speed': int },
                         'weather': str,
-                    },
-                    {...},
-                ]
+                        },
+                        {...},
+                    ],
+                }
     '''
     ssl._create_default_https_context = ssl._create_unverified_context  # Used to fix urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired.
     api_call = f'https://www.7timer.info/bin/civil.php?lon={lon}&lat={lat}&product=civil&ac=0&unit=british&output=json&tzshift=0'
     user_link = f'https://www.7timer.info/bin/civil.php?lon={lon}&lat={lat}&product=civil&ac=0&unit=british&output=internal&tzshift=0'
     print('Getting weather data...')
-    response = urllib.request.urlopen(api_call)
+    try:
+        response = urllib.request.urlopen(api_call)
+    except:
+        raise
     data = json.load(response)
     data['user_link'] = user_link
     return data
@@ -173,7 +180,7 @@ def display_weather(data, timepoints=1):
     Print the weather info to the console. 
 
         args:
-            data (list): List of dicts, returned from get_weather().
+            data (dict): Dictionary returned from get_weather(). Must add data['loc'], which is provided by get_coordinates().
             timepoints (int): The number of data points to print. [Default is 1]
         
         returns:
@@ -184,26 +191,29 @@ def display_weather(data, timepoints=1):
     DATA_INIT_TIME = time.strptime(data['init'][:-2] + str(int(data['init'][-2:]) + int(int(time.strftime('%z', CURRENT_TIME)) / 100)).rjust(2, '0'), '%Y%m%d%H')  # Apply
     DIFFERENCE = int((time.mktime(CURRENT_TIME) - time.mktime(DATA_INIT_TIME)) / 60 / 60)  # Difference in hours.
     INDEX = int(DIFFERENCE / 3) - 1  # Each dataseries is 3 hrs apart, index 0 is the DATA_INIT_TIME + 3 hrs.
-    for point in range(timepoints):
-        timepoint_data = data['dataseries'][point + INDEX]
-        for key, val in timepoint_data.items():
-            try:
-                timepoint_data[key] = WEATHER_DICT[key][val]
-            except Exception as e:
-                if key == 'wind10m':
-                    timepoint_data[key] = f'{ WEATHER_DICT[key][val["speed"]]}, {val["direction"]}'
-                else:
-                    pass
-                continue
-        print('-' * CONSOLE_WIDTH)
-        timestamp = time.strftime('%I %p, %h %d, %Y', time.localtime(time.mktime(DATA_INIT_TIME) + (timepoint_data['timepoint'] * 60 * 60)))
-        print(f'{data["loc"]} [{timestamp}]'.ljust(CONSOLE_WIDTH))
-        print(f'{timepoint_data["temp2m"]}\u00b0F')
-        print(timepoint_data["weather"])
-        print(f'Wind {timepoint_data["wind10m"]}')
-        print(f'R.H. {timepoint_data["rh2m"]}')
-        print(f'Precip. {timepoint_data["prec_type"]} {timepoint_data["prec_amount"]}')
-        print('-' * CONSOLE_WIDTH)
+    try:
+        for point in range(timepoints):
+            timepoint_data = data['dataseries'][point + INDEX]
+            for key, val in timepoint_data.items():
+                try:
+                    timepoint_data[key] = WEATHER_DICT[key][val]
+                except Exception as e:
+                    if key == 'wind10m':
+                        timepoint_data[key] = f'{ WEATHER_DICT[key][val["speed"]]}, {val["direction"]}'
+                    else:
+                        pass
+                    continue
+            print('-' * CONSOLE_WIDTH)
+            timestamp = time.strftime('%I %p, %h %d, %Y', time.localtime(time.mktime(DATA_INIT_TIME) + (timepoint_data['timepoint'] * 60 * 60)))
+            print(f'{data["loc"]} [{timestamp}]'.ljust(CONSOLE_WIDTH))
+            print(f'{timepoint_data["temp2m"]}\u00b0F')
+            print(timepoint_data["weather"])
+            print(f'Wind {timepoint_data["wind10m"]}')
+            print(f'R.H. {timepoint_data["rh2m"]}')
+            print(f'Precip. {timepoint_data["prec_type"]} {timepoint_data["prec_amount"]}')
+            print('-' * CONSOLE_WIDTH)
+    except IndexError:
+        pass
 
 if __name__ == '__main__':
     os.system('mode con: cols=80 lines=30')
