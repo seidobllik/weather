@@ -188,9 +188,9 @@ def display_weather(data, timepoints=1):
     '''
     CONSOLE_WIDTH = 80
     CURRENT_TIME = time.localtime()
-    DATA_INIT_TIME = time.strptime(data['init'][:-2] + str(int(data['init'][-2:]) + int(int(time.strftime('%z', CURRENT_TIME)) / 100)).rjust(2, '0'), '%Y%m%d%H')  # Apply
+    DATA_INIT_TIME = time.localtime(time.mktime(time.strptime(data['init'], '%Y%m%d%H')) + (int(int(time.strftime('%z', CURRENT_TIME)) / 100) * 60 * 60))
     DIFFERENCE = int((time.mktime(CURRENT_TIME) - time.mktime(DATA_INIT_TIME)) / 60 / 60)  # Difference in hours.
-    INDEX = int(DIFFERENCE / 3) - 1  # Each dataseries is 3 hrs apart, index 0 is the DATA_INIT_TIME + 3 hrs.
+    INDEX = max([int(DIFFERENCE / 3) - 1, 0])  # Each dataseries is 3 hrs apart, index 0 is the DATA_INIT_TIME + 3 hrs. INDEX should not be less than zero.
     try:
         for point in range(timepoints):
             timepoint_data = data['dataseries'][point + INDEX]
